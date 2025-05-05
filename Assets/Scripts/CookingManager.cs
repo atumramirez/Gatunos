@@ -25,9 +25,11 @@ public class CookingManager : MonoBehaviour
     public List<Recipe> possibleRecipes;
     public Transform plateParent;
     public GameObject plateIngredientPrefab;
+    public GameObject check;
     public TextMeshProUGUI recipeGoalText;
     public TextMeshProUGUI resultText;
     public Button checkRecipeButton;
+    public Button generateRecipeButton;
 
     private List<string> plate = new List<string>();
     private List<string> currentRecipe = new List<string>();
@@ -35,14 +37,14 @@ public class CookingManager : MonoBehaviour
 
     void Start()
     {
+        check.SetActive(false);
         foreach (var ingredient in allIngredients)
         {
             ingredient.button.onClick.AddListener(() => ToggleIngredient(ingredient));
         }
 
         checkRecipeButton.onClick.AddListener(CheckRecipe);
-
-        GenerateRecipe(); // Pick from predefined recipes
+        generateRecipeButton.onClick.AddListener(GenerateRecipe);
     }
 
     void ToggleIngredient(Ingredient ingredient)
@@ -69,19 +71,47 @@ public class CookingManager : MonoBehaviour
 
         if (sortedPlate.SequenceEqual(sortedRecipe))
         {
-            resultText.text = "Correct!";
+            
+            check.SetActive(true);
+            ClearPlate();
+            RecipeWasCorrect();
         }
         else
         {
-            resultText.text = "Wrong!";
+            ClearPlate();
+            RecipeWasWrong();
         }
+        
     }
 
-    void GenerateRecipe()
+    public void GenerateRecipe()
     {
         int index = Random.Range(0, possibleRecipes.Count);
         currentRecipe = new List<string>(possibleRecipes[index].ingredients);
-        recipeGoalText.text = $"Make: {possibleRecipes[index].recipeName}";
-        resultText.text = ""; // Clear previous result
+        recipeGoalText.text = $"Pedido: {possibleRecipes[index].recipeName}";
+
+    }
+
+    public CharacterMover characterMover;
+
+    public void RecipeWasCorrect()
+    {
+        characterMover.OnRecipeResult(true);
+    }
+
+    public void RecipeWasWrong()
+    {
+        characterMover.OnRecipeResult(false);
+    }
+
+    void ClearPlate()
+    {
+        foreach (var visual in ingredientVisuals.Values)
+        {
+            Destroy(visual);
+        }
+
+        ingredientVisuals.Clear();
+        plate.Clear();
     }
 }
