@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 
 public class CharacterMover : MonoBehaviour
 {
@@ -14,20 +15,43 @@ public class CharacterMover : MonoBehaviour
     public RectTransform endPoint;
 
     [Header("UI")]
+    public Button startButton;
     public Button triggerButton;
+    public TextMeshProUGUI customersLeftText;
 
     [Header("Recipe System")]
     public CookingManager cookingManager;
 
     [Header("Settings")]
-    public int totalCharacters = 5;
+    public int minCharacters = 3;
+    public int maxCharacters = 5;
 
+    [Header("Special Customer Settings")]
+    public List<Sprite> specialCustomerSprites;
+    private bool currentCustomerIsSpecial = false;
+
+    [Header("Fade Settings")]
+    public IrCuzinha IrCuzinha;
+
+    private int totalCharacters = 0;
     private int charactersServed = 0;
     private bool waitingForRecipeResult = false;
 
     void Start()
     {
         triggerButton.gameObject.SetActive(false);
+        characterImage.gameObject.SetActive(false);
+        customersLeftText.gameObject.SetActive(false);
+        startButton.gameObject.SetActive(true);
+        startButton.onClick.AddListener(BeginGame);
+    }
+
+    void BeginGame()
+    {
+        totalCharacters = Random.Range(minCharacters, maxCharacters + 1);
+        charactersServed = 0;
+        customersLeftText.gameObject.SetActive(true);
+        startButton.gameObject.SetActive(false);
         StartNextCharacter();
     }
 
@@ -35,14 +59,23 @@ public class CharacterMover : MonoBehaviour
     {
         cookingManager.recipeGoalText.text = "";
         cookingManager.check.SetActive(false);
+
+        UpdateCustomersLeftText();
+
         if (charactersServed >= totalCharacters)
         {
-            Debug.Log("All characters served!");
             characterImage.gameObject.SetActive(false);
+            customersLeftText.text = "All customers served!";
+            IrCuzinha.TransitionTo(IrCuzinha.AbrirRestaurante);
             return;
         }
 
-        characterImage.sprite = characterSprites[Random.Range(0, characterSprites.Count)];
+        currentCustomerIsSpecial = Random.value < 0.3f; 
+
+        characterImage.sprite = currentCustomerIsSpecial
+            ? specialCustomerSprites[Random.Range(0, specialCustomerSprites.Count)]
+            : characterSprites[Random.Range(0, characterSprites.Count)];
+
         characterImage.rectTransform.anchoredPosition = startPoint.anchoredPosition;
         characterImage.gameObject.SetActive(true);
 
@@ -71,33 +104,42 @@ public class CharacterMover : MonoBehaviour
         triggerButton.onClick.AddListener(() =>
         {
             triggerButton.gameObject.SetActive(false);
-            cookingManager.GenerateRecipe();
+            cookingManager.GenerateRecipe(currentCustomerIsSpecial);
             waitingForRecipeResult = true;
         });
     }
 
-    public void OnRecipeResult(bool correct)
+    public void OnRecipeResult(bool correct, bool wasForbidden)
     {
         if (!waitingForRecipeResult) return;
 
+        waitingForRecipeResult = false;
+
+        if (wasForbidden)
+        {
+            IrCuzinha.TransitionTo(IrCuzinha.MostrarFinalMau);
+        }
+
         if (correct)
         {
-            waitingForRecipeResult = false;
             StartCoroutine(MoveAndSpawnNext());
-        }
-        else
-        {
         }
     }
 
     IEnumerator MoveAndSpawnNext()
     {
         Vector2 offScreen = new Vector2(-770f, -95f);
-        yield return StartCoroutine(MoveToPosition(offScreen)); 
+        yield return StartCoroutine(MoveToPosition(offScreen));
         characterImage.gameObject.SetActive(false);
         charactersServed++;
 
         yield return new WaitForSeconds(0.5f);
         StartNextCharacter();
+    }
+
+    void UpdateCustomersLeftText()
+    {
+        int remaining = totalCharacters - charactersServed;
+        customersLeftText.text = $"Customers Left: {remaining}";
     }
 }
